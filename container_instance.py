@@ -11,7 +11,7 @@ client_secret = os.environ.get('CLIENT_SECRET')
 subscription_id = os.environ.get('SUBSCRIPTION_ID')
 tenant_id = os.environ.get('TENANT_ID')
 region = os.environ.get('REGION')
-min_to_run = os.environ.get('MINS_TO_RUN')
+min_to_run = float(os.environ.get('MINS_TO_RUN'))
 
 # MSFT Variables
 access_token_url = "https://login.microsoftonline.com/{}/oauth2/token".format(
@@ -31,8 +31,11 @@ json_data_file.write("[")
 now = datetime.now()
 timeout_time = now + timedelta(minutes=min_to_run)
 
+print("Starting data collection.")
+
 row = 0
 while now < timeout_time:
+    print("{}: Getting Data -- Row {}".format(now, row))
     if row > 0:
         json_data_file.write(",\n")
 
@@ -58,6 +61,8 @@ while now < timeout_time:
 
 json_data_file.write("]")
 
+print("Data collection finished. Writing to CSV.")
+
 # Finished writing so close file
 json_data_file.close()
 
@@ -75,9 +80,9 @@ csv_file.writerow(["id", "unit", "currentValue", "limit",
                   "name.value", "name.localizedValue"])
 
 for row in output_data:
-    print(row)
+    # print(row)
     for record in row:
-        print(record)
+        # print(record)
         csv_file.writerow([
             record['id'],
             record['unit'],
@@ -86,3 +91,5 @@ for row in output_data:
             record['name']['value'],
             record['name']['localizedValue']
         ])
+
+print("Finished")
