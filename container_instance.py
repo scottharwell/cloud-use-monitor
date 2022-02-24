@@ -72,7 +72,7 @@ output_data_str = json_data_file.read()
 json_data_file.close()
 output_data = json.loads(output_data_str)
 
-# Open CSV Writer
+# Open CSV for raw data migration
 csv_file = csv.writer(open("output.csv", "w"))
 
 # Create header row
@@ -91,5 +91,29 @@ for row in output_data:
             record['name']['value'],
             record['name']['localizedValue']
         ])
+
+# Open CSV for data transposition
+transposed_csv_file = csv.writer(open("output_transposed.csv", "w"))
+
+# Create header row
+transposed_csv_file.writerow(["ContainerGroups", "StandardCores", "StandardK80Cores", "StandardP100Cores",
+                  "StandardV100Cores", "DedicatedContainerGroups"])
+
+for row in output_data:
+    container_groups = row[0]['currentValue']
+    standard_cores = row[1]['currentValue']
+    standard_k80_cores = row[2]['currentValue']
+    standard_p100_cores = row[3]['currentValue']
+    standard_v100_cores = row[4]['currentValue']
+    dedicated_container_groups = row[5]['currentValue']
+
+    transposed_csv_file.writerow([
+        container_groups,
+        standard_cores,
+        standard_k80_cores,
+        standard_p100_cores,
+        standard_v100_cores,
+        dedicated_container_groups
+    ])
 
 print("Finished")
