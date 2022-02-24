@@ -11,6 +11,7 @@ client_secret = os.environ.get('CLIENT_SECRET')
 subscription_id = os.environ.get('SUBSCRIPTION_ID')
 tenant_id = os.environ.get('TENANT_ID')
 region = os.environ.get('REGION')
+min_to_run = os.environ.get('MINS_TO_RUN')
 
 # MSFT Variables
 access_token_url = "https://login.microsoftonline.com/{}/oauth2/token".format(
@@ -28,10 +29,10 @@ json_data_file.write("[")
 
 # Create loop for 30 mins that writes data to a CSV file every 10 seconds
 now = datetime.now()
-thirty_mins = now + timedelta(minutes=1)
+timeout_time = now + timedelta(minutes=min_to_run)
 
 row = 0
-while now < thirty_mins:
+while now < timeout_time:
     if row > 0:
         json_data_file.write(",\n")
 
