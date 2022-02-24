@@ -7,7 +7,8 @@
         "richie5um2.vscode-sort-json",
         "zainchen.json",
         "ms-vscode.vscode-node-azure-pack",
-        "ms-vscode.azure-account"
+        "ms-vscode.azure-account",
+        "j4ng5y.charactercount"
     ],
     "forwardPorts": [],
     "mounts": [
