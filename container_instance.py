@@ -23,6 +23,12 @@ data = {'grant_type': 'client_credentials', 'client_id': client_id,
 auth = requests.post(access_token_url, data=data)
 auth_data = auth.json()
 
+# Setup URL
+url = "https://management.azure.com/subscriptions/{}/providers/Microsoft.ContainerInstance/locations/{}/usages?api-version=2021-09-01".format(
+    subscription_id, region)
+headers = {"Authorization": "{} {}".format(
+    auth_data['token_type'], auth_data['access_token'])}
+
 # Open csv file
 json_data_file = open('output.json', 'w')
 json_data_file.write("[")
@@ -40,17 +46,16 @@ while now < timeout_time:
         json_data_file.write(",\n")
 
     # Submit Request
-    url = "https://management.azure.com/subscriptions/{}/providers/Microsoft.ContainerInstance/locations/{}/usages?api-version=2021-09-01".format(
-        subscription_id, region)
-    headers = {"Authorization": "{} {}".format(
-        auth_data['token_type'], auth_data['access_token'])}
     response = requests.get(url, headers=headers)
     response_data = response.json()
-    response_value = json.dumps(response_data['value'])
-    # print(response_value)
 
-    # Write data
-    json_data_file.write(response_value)
+    if "value" in response_data:
+        response_value = json.dumps(response_data['value'])
+        # Write data
+        json_data_file.write(response_value)
+    else:
+        # Something happened!
+        print(response_data)
 
     # Sleep 10 seconds
     time.sleep(10)
@@ -97,7 +102,7 @@ transposed_csv_file = csv.writer(open("output_transposed.csv", "w"))
 
 # Create header row
 transposed_csv_file.writerow(["ContainerGroups", "StandardCores", "StandardK80Cores", "StandardP100Cores",
-                  "StandardV100Cores", "DedicatedContainerGroups"])
+                              "StandardV100Cores", "DedicatedContainerGroups"])
 
 for row in output_data:
     container_groups = row[0]['currentValue']
