@@ -13,7 +13,7 @@ client_secret = os.environ.get('CLIENT_SECRET')
 subscription_id = os.environ.get('SUBSCRIPTION_ID')
 tenant_id = os.environ.get('TENANT_ID')
 region = os.environ.get('REGION')
-min_to_run = float(os.environ.get('MINS_TO_RUN'))
+min_to_run = float(os.environ.get('MINS_TO_RUN'))  # must be fewer than 60 so that the OAuth token does not expire
 
 # MSFT Variables
 access_token_url = "https://login.microsoftonline.com/{}/oauth2/token".format(
