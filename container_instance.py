@@ -156,11 +156,13 @@ def monitor_deployment(sleep_seconds = 10):
                 json_data_file.write(response_value)
             else:
                 # Something happened!
+                print_message("MS APIs returned an unexpected response")
                 print(response_data)
 
             # Sleep 10 seconds
             time.sleep(sleep_seconds)
         except Exception as e:
+            print_message("An exception occurred communicating with MS APIs")
             print(e)
 
         # Set next row
