@@ -22,7 +22,7 @@ client_secret = os.environ.get("CLIENT_SECRET")
 subscription_id = os.environ.get("SUBSCRIPTION_ID")
 tenant_id = os.environ.get("TENANT_ID")
 region = os.environ.get("REGION")
-min_to_run = float(os.environ.get("MINS_TO_RUN")) if os.environ.get("MINS_TO_RUN") else 45  # must be fewer than 60 so that the OAuth token does not expire
+min_to_run = float(os.environ.get("MINS_TO_RUN")) if os.environ.get("MINS_TO_RUN") else 45
 
 # MSFT Variables
 headers = None
