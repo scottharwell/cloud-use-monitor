@@ -9,7 +9,8 @@
         "ms-vscode.vscode-node-azure-pack",
         "ms-vscode.azure-account",
         "j4ng5y.charactercount",
-        "njpwerner.autodocstring"
+        "njpwerner.autodocstring",
+        "ms-python.pylint"
     ],
     "forwardPorts": [],
     "mounts": [

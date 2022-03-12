@@ -1,0 +1,8 @@
+[FORMAT]
+max-line-length=200
+
+disable=
+    invalid-name,
+    broad-except,
+    global-statement,
+    missing-module-docstring

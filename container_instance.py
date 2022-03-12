@@ -4,10 +4,10 @@ import csv
 from datetime import datetime, timedelta
 import json
 import os
-import requests
 import shutil
 import sys
 import time
+import requests
 
 # Constants
 oauth_lifespan_mins = 60
@@ -27,8 +27,8 @@ min_to_run = float(os.environ.get("MINS_TO_RUN")) if os.environ.get("MINS_TO_RUN
 # MSFT Variables
 headers = None
 oauth_refresh_time = None
-access_token_url = "https://login.microsoftonline.com/{}/oauth2/token".format(tenant_id)
-url = "https://management.azure.com/subscriptions/{}/providers/Microsoft.ContainerInstance/locations/{}/usages?api-version=2021-09-01".format(subscription_id, region)
+access_token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"
+url = f"https://management.azure.com/subscriptions/{subscription_id}/providers/Microsoft.ContainerInstance/locations/{region}/usages?api-version=2021-09-01"
 
 
 def print_message(text: str):
@@ -39,7 +39,7 @@ def print_message(text: str):
     """
 
     now = datetime.now()
-    print("{}: {}".format(now, text))
+    print(f"{now}: {text}")
 
 
 def prep_output_folder():
@@ -48,8 +48,8 @@ def prep_output_folder():
 
     try:
         shutil.rmtree(output_folder)
-    except Exception as e:
-        print_message(e)
+    except Exception as exception:
+        print_message(exception)
     finally:
         os.mkdir(output_folder)
 
@@ -59,7 +59,7 @@ def output_script_runtime():
     """
     now = datetime.now()
     end_time = now + timedelta(minutes=min_to_run)
-    print_message("Script will finish at {}".format(end_time))
+    print_message(f"Script will finish at {end_time}")
 
 
 def setup_oauth_token():
@@ -75,12 +75,12 @@ def setup_oauth_token():
 
     # Setup Headers
     global headers
-    headers = {"Authorization": "{} {}".format(auth_data["token_type"], auth_data["access_token"])}
+    headers = {"Authorization": f"{auth_data['token_type']} {auth_data['access_token']}"}
 
     # Set Auth Refresh Time
     global oauth_refresh_time
     oauth_refresh_time = datetime.now()
-    print_message("Auth Token Result: {}".format(auth.status_code))
+    print_message(f"Auth Token Result: {auth.status_code}")
 
 
 def read_json_file_data() -> any:
@@ -90,7 +90,7 @@ def read_json_file_data() -> any:
         any: An object with the loaded data.
     """
     # Read all output back into memory to convert to CSV
-    with open("{}/output.json".format(output_folder), "r") as json_data_file:
+    with open(f"{output_folder}/output.json", "r", encoding="UTF-8") as json_data_file:
         output_data_str = json_data_file.read()
         output_data = json.loads(output_data_str)
 
@@ -106,24 +106,25 @@ def create_csv_file(json_data: any):
     print_message("Transforming JSON to CSV Data")
 
     # Open CSV for raw data migration
-    csv_file = csv.writer(open("{}/output.csv".format(output_folder), "w"))
-    
-    # Create header row
-    csv_file.writerow(["id", "unit", "currentValue", "limit",
-                    "name.value", "name.localizedValue"])
+    with open(f"{output_folder}/output.csv", "w", encoding="UTF-8") as file:
+        csv_file = csv.writer(file)
 
-    for row in json_data:
-        # print(row)
-        for record in row:
-            # print(record)
-            csv_file.writerow([
-                record["id"],
-                record["unit"],
-                record["currentValue"],
-                record["limit"],
-                record["name"]["value"],
-                record["name"]["localizedValue"]
-            ])
+        # Create header row
+        csv_file.writerow(["id", "unit", "currentValue", "limit",
+                        "name.value", "name.localizedValue"])
+
+        for row in json_data:
+            # print(row)
+            for record in row:
+                # print(record)
+                csv_file.writerow([
+                    record["id"],
+                    record["unit"],
+                    record["currentValue"],
+                    record["limit"],
+                    record["name"]["value"],
+                    record["name"]["localizedValue"]
+                ])
 
 
 def transpose_csv_data(json_data):
@@ -133,42 +134,45 @@ def transpose_csv_data(json_data):
         json_data (any): The JSON object from the collected data set.
     """
     print_message("Transposing CSV to core counts as columns")
-    
+
     # Open CSV for data transposition
-    transposed_csv_file = csv.writer(open("{}/output_transposed.csv".format(output_folder), "w"))
-    
-    # Create header row
-    transposed_csv_file.writerow(["ContainerGroups", "StandardCores", "StandardK80Cores", "StandardP100Cores",
-                                "StandardV100Cores", "DedicatedContainerGroups"])
+    with open(f"{output_folder}/output_transposed.csv", "w", encoding="UTF-8") as file:
+        transposed_csv_file = csv.writer(file)
 
-    for row in json_data:
-        container_groups = row[0]["currentValue"]
-        standard_cores = row[1]["currentValue"]
-        standard_k80_cores = row[2]["currentValue"]
-        standard_p100_cores = row[3]["currentValue"]
-        standard_v100_cores = row[4]["currentValue"]
-        dedicated_container_groups = row[5]["currentValue"]
+        # Create header row
+        transposed_csv_file.writerow(["ContainerGroups", "StandardCores", "StandardK80Cores", "StandardP100Cores",
+                                    "StandardV100Cores", "DedicatedContainerGroups"])
 
-        transposed_csv_file.writerow([
-            container_groups,
-            standard_cores,
-            standard_k80_cores,
-            standard_p100_cores,
-            standard_v100_cores,
-            dedicated_container_groups
-        ])
+        for row in json_data:
+            container_groups = row[0]["currentValue"]
+            standard_cores = row[1]["currentValue"]
+            standard_k80_cores = row[2]["currentValue"]
+            standard_p100_cores = row[3]["currentValue"]
+            standard_v100_cores = row[4]["currentValue"]
+            dedicated_container_groups = row[5]["currentValue"]
+
+            transposed_csv_file.writerow([
+                container_groups,
+                standard_cores,
+                standard_k80_cores,
+                standard_p100_cores,
+                standard_v100_cores,
+                dedicated_container_groups
+            ])
 
 
 def handle_monitor_stop():
     """Called when the script ends before the expected timeout to clean up the JSON structure of the outputted file and to create CSVs from the outputted data if the user requires.
     """
-    with open("{}/output.json".format(output_folder), "r") as json_data_file:
+    with open(f"{output_folder}/output.json", "r", encoding="UTF-8") as json_data_file:
         json_data_str = json_data_file.read()
 
         if json_data_str[-2:] != "]]":
             print_message("JSON does not appear complete. Attempting to correct the file.")
-            json_data_file = open("{}/output.json".format(output_folder), "a+")
-            json_data_file.write("]")
+
+            with open(f"{output_folder}/output.json", "a+", encoding="UTF-8") as json_data_file_a:
+                json_data_file_a.write("]")
+
             json_data_str = json_data_str + "]"
 
         convert_files = ""
@@ -191,7 +195,7 @@ def monitor_deployment(sleep_seconds = 10):
     print_message("Starting data collection")
 
     # Open csv file
-    with open("{}/output.json".format(output_folder), "w") as json_data_file:
+    with open(f"{output_folder}/output.json", "w", encoding="UTF-8") as json_data_file:
         json_data_file.write("[")
 
         # Create loop for 30 mins that writes data to a CSV file every 10 seconds
@@ -215,7 +219,7 @@ def monitor_deployment(sleep_seconds = 10):
             if refresh_token:
                 setup_oauth_token()
 
-            print_message("Getting Data -- Row {}".format(row))
+            print_message(f"Getting Data -- Row {row}")
             if row > 0:
                 json_data_file.write(",\n")
 
@@ -239,9 +243,9 @@ def monitor_deployment(sleep_seconds = 10):
 
                 # Sleep 10 seconds
                 time.sleep(sleep_seconds)
-            except Exception as e:
+            except Exception as eception:
                 print_message("An exception occurred communicating with MS APIs")
-                print(e)
+                print(eception)
 
             # Set next row
             row = row + 1
@@ -286,4 +290,4 @@ if __name__ == '__main__':
         try:
             sys.exit(0)
         except SystemExit:
-            os._exit(0)
+            os._exit(0) # pylint: disable=protected-access
