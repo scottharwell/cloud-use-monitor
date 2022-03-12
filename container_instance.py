@@ -5,10 +5,16 @@ from datetime import datetime, timedelta
 import json
 import os
 import requests
+import shutil
+import sys
 import time
 
 # Constants
 oauth_lifespan_mins = 60
+output_folder = os.getenv("OUTPUT_FOLDER") if os.getenv("OUTPUT_FOLDER") else "output"
+
+# Operation State
+collecting_data = False
 
 # Get environment variables
 client_id = os.getenv("CLIENT_ID")
@@ -24,9 +30,19 @@ oauth_refresh_time = None
 access_token_url = "https://login.microsoftonline.com/{}/oauth2/token".format(tenant_id)
 url = "https://management.azure.com/subscriptions/{}/providers/Microsoft.ContainerInstance/locations/{}/usages?api-version=2021-09-01".format(subscription_id, region)
 
+
 def print_message(text: str):
     now = datetime.now()
     print("{}: {}".format(now, text))
+
+
+def prep_output_folder():
+    try:
+        shutil.rmtree(output_folder)
+    except Exception as e:
+        print_message(e)
+    finally:
+        os.mkdir(output_folder)
 
 
 def output_script_runtime():
@@ -56,19 +72,19 @@ def setup_oauth_token():
 
 def read_json_file_data() -> any:
     # Read all output back into memory to convert to CSV
-    json_data_file = open("output.json", "r")
-    output_data_str = json_data_file.read()
-    json_data_file.close()
-    output_data = json.loads(output_data_str)
+    with open("{}/output.json".format(output_folder), "r") as json_data_file:
+        output_data_str = json_data_file.read()
+        output_data = json.loads(output_data_str)
 
-    return output_data
+        return output_data
 
 
 def create_csv_file(json_data):
     print_message("Transforming JSON to CSV Data")
-    # Open CSV for raw data migration
-    csv_file = csv.writer(open("output.csv", "w"))
 
+    # Open CSV for raw data migration
+    csv_file = csv.writer(open("{}/output.csv".format(output_folder), "w"))
+    
     # Create header row
     csv_file.writerow(["id", "unit", "currentValue", "limit",
                     "name.value", "name.localizedValue"])
@@ -89,9 +105,10 @@ def create_csv_file(json_data):
 
 def transpose_csv_data(json_data):
     print_message("Transposing CSV to core counts as columns")
+    
     # Open CSV for data transposition
-    transposed_csv_file = csv.writer(open("output_transposed.csv", "w"))
-
+    transposed_csv_file = csv.writer(open("{}/output_transposed.csv".format(output_folder), "w"))
+    
     # Create header row
     transposed_csv_file.writerow(["ContainerGroups", "StandardCores", "StandardK80Cores", "StandardP100Cores",
                                 "StandardV100Cores", "DedicatedContainerGroups"])
@@ -113,79 +130,122 @@ def transpose_csv_data(json_data):
             dedicated_container_groups
         ])
 
+
+def handle_monitor_stop():
+    with open("{}/output.json".format(output_folder), "r") as json_data_file:
+        json_data_str = json_data_file.read()
+
+        if json_data_str[-2:] != "]]":
+            print_message("JSON does not appear complete. Attempting to correct the file.")
+            json_data_file = open("{}/output.json".format(output_folder), "a+")
+            json_data_file.write("]")
+            json_data_str = json_data_str + "]"
+
+        convert_files = ""
+        while convert_files == "" or (convert_files.lower() != "n" and convert_files.lower() != "y"):
+            convert_files = input("Convert collected JSON to CSV data? (y or n): ")
+
+        if convert_files.lower() == "y":
+
+            json_data = json.loads(json_data_str)
+            create_csv_file(json_data)
+            transpose_csv_data(json_data)
+
+
 def monitor_deployment(sleep_seconds = 10):
     print_message("Starting data collection")
 
     # Open csv file
-    json_data_file = open("output.json", "w")
-    json_data_file.write("[")
+    with open("{}/output.json".format(output_folder), "w") as json_data_file:
+        json_data_file.write("[")
 
-    # Create loop for 30 mins that writes data to a CSV file every 10 seconds
-    now = datetime.now()
-    timeout_time = now + timedelta(minutes=min_to_run)
-
-    row = 0
-
-    while now < timeout_time:
-        # Get new access token if required
-        refresh_token = False
-
-        if oauth_refresh_time is not None:
-            refresh_token_time = oauth_refresh_time + timedelta(minutes=(oauth_lifespan_mins - 5))
-
-            if now > refresh_token_time:
-                refresh_token = True
-        else:
-            refresh_token = True
-
-        if refresh_token:
-            setup_oauth_token()
-
-        print_message("Getting Data -- Row {}".format(row))
-        if row > 0:
-            json_data_file.write(",\n")
-
-        try:
-            # Submit Request
-            response = requests.get(url, headers=headers)
-            response_data = response.json()
-
-            if "value" in response_data:
-                response_value = json.dumps(response_data["value"])
-                # Write data
-                json_data_file.write(response_value)
-            else:
-                # Something happened!
-                print_message("MS APIs returned an unexpected response")
-                print(response_data)
-
-            # Sleep 10 seconds
-            time.sleep(sleep_seconds)
-        except Exception as e:
-            print_message("An exception occurred communicating with MS APIs")
-            print(e)
-
-        # Set next row
-        row = row + 1
+        # Create loop for 30 mins that writes data to a CSV file every 10 seconds
         now = datetime.now()
+        timeout_time = now + timedelta(minutes=min_to_run)
 
-    json_data_file.write("]")
+        row = 0
 
-    # Finished writing so close file
-    json_data_file.close()
+        while now < timeout_time:
+            # Get new access token if required
+            refresh_token = False
+
+            if oauth_refresh_time is not None:
+                refresh_token_time = oauth_refresh_time + timedelta(minutes=(oauth_lifespan_mins - 5))
+
+                if now > refresh_token_time:
+                    refresh_token = True
+            else:
+                refresh_token = True
+
+            if refresh_token:
+                setup_oauth_token()
+
+            print_message("Getting Data -- Row {}".format(row))
+            if row > 0:
+                json_data_file.write(",\n")
+
+            try:
+                # Ensure that the collecting data flag is true
+                global collecting_data
+                collecting_data = True
+
+                # Submit Request
+                response = requests.get(url, headers=headers)
+                response_data = response.json()
+
+                if "value" in response_data:
+                    response_value = json.dumps(response_data["value"])
+                    # Write data
+                    json_data_file.write(response_value)
+                else:
+                    # Something happened!
+                    print_message("MS APIs returned an unexpected response")
+                    print(response_data)
+
+                # Sleep 10 seconds
+                time.sleep(sleep_seconds)
+            except Exception as e:
+                print_message("An exception occurred communicating with MS APIs")
+                print(e)
+
+            # Set next row
+            row = row + 1
+            now = datetime.now()
+
+        json_data_file.write("]")
 
     print_message("Data collection finished")
 
-print_message("Container Monitoring Script Started")
 
-output_script_runtime()
+def main():
+    # Start Monitoring Process
+    print_message("Container Monitoring Script Started")
 
-monitor_deployment()
+    # Prep data output locations
+    prep_output_folder()
+    output_script_runtime()
 
-json_data = read_json_file_data()
+    # Run monitoring
+    monitor_deployment()
 
-create_csv_file(json_data)
+    # Create CSV files from monitored data
+    json_data = read_json_file_data()
+    create_csv_file(json_data)
+    transpose_csv_data(json_data)
 
-transpose_csv_data(json_data)
+    # Wrap up tasks
+    print_message("Script Finished")
 
-print_message("Script Finished")
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print_message('Process interrupted')
+
+        handle_monitor_stop()
+
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
