@@ -8,7 +8,8 @@
         "zainchen.json",
         "ms-vscode.vscode-node-azure-pack",
         "ms-vscode.azure-account",
-        "j4ng5y.charactercount"
+        "j4ng5y.charactercount",
+        "njpwerner.autodocstring"
     ],
     "forwardPorts": [],
     "mounts": [
