@@ -32,11 +32,20 @@ url = "https://management.azure.com/subscriptions/{}/providers/Microsoft.Contain
 
 
 def print_message(text: str):
+    """Prints CLI messages with the current timestamp in front of the message
+
+    Args:
+        text (str): The message to display
+    """
+
     now = datetime.now()
     print("{}: {}".format(now, text))
 
 
 def prep_output_folder():
+    """Prepares the data output folder by removing old data if it exists.
+    """
+
     try:
         shutil.rmtree(output_folder)
     except Exception as e:
@@ -46,12 +55,16 @@ def prep_output_folder():
 
 
 def output_script_runtime():
+    """Prints the expected script runtime if it is allowed to run to completion.
+    """
     now = datetime.now()
     end_time = now + timedelta(minutes=min_to_run)
     print_message("Script will finish at {}".format(end_time))
 
 
 def setup_oauth_token():
+    """Retrieves and stores an OAuth token to connect to Azure APIs.
+    """
     print_message("Getting Auth Token")
 
     data = {"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret, "resource": "https://management.azure.com"}
@@ -71,6 +84,11 @@ def setup_oauth_token():
 
 
 def read_json_file_data() -> any:
+    """Reads the written JSON data and converts into a JSON object.
+
+    Returns:
+        any: An object with the loaded data.
+    """
     # Read all output back into memory to convert to CSV
     with open("{}/output.json".format(output_folder), "r") as json_data_file:
         output_data_str = json_data_file.read()
@@ -79,7 +97,12 @@ def read_json_file_data() -> any:
         return output_data
 
 
-def create_csv_file(json_data):
+def create_csv_file(json_data: any):
+    """Converts the JSON data into a CSV file for use in spreadsheets.
+
+    Args:
+        json_data (any): The JSON object from the collected data set.
+    """
     print_message("Transforming JSON to CSV Data")
 
     # Open CSV for raw data migration
@@ -104,6 +127,11 @@ def create_csv_file(json_data):
 
 
 def transpose_csv_data(json_data):
+    """Transposes the JSON data into a different CSV format where the container types are columns.  This allows for different data visualizations in spreadsheets.
+
+    Args:
+        json_data (any): The JSON object from the collected data set.
+    """
     print_message("Transposing CSV to core counts as columns")
     
     # Open CSV for data transposition
@@ -132,6 +160,8 @@ def transpose_csv_data(json_data):
 
 
 def handle_monitor_stop():
+    """Called when the script ends before the expected timeout to clean up the JSON structure of the outputted file and to create CSVs from the outputted data if the user requires.
+    """
     with open("{}/output.json".format(output_folder), "r") as json_data_file:
         json_data_str = json_data_file.read()
 
@@ -153,6 +183,11 @@ def handle_monitor_stop():
 
 
 def monitor_deployment(sleep_seconds = 10):
+    """Performs the requests to Azure APIs and records the response data to a file.
+
+    Args:
+        sleep_seconds (int, optional): The number of seconds to sleep before API calls are made. Defaults to 10.
+    """
     print_message("Starting data collection")
 
     # Open csv file
@@ -218,6 +253,9 @@ def monitor_deployment(sleep_seconds = 10):
 
 
 def main():
+    """Main method of the script.
+    """
+
     # Start Monitoring Process
     print_message("Container Monitoring Script Started")
 
