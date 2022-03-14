@@ -160,7 +160,6 @@ def setup_oauth_token(cli_args: any) -> dict:
     tenant_id = cli_args.tenant_id
 
     access_token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"
-    print(access_token_url)
 
     data = {"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret, "resource": "https://management.azure.com"}
 
